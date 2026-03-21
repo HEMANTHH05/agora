@@ -10,11 +10,18 @@ declare global {
 }
 
 function createSql() {
-  return postgres(process.env.DATABASE_URL!, {
-    ssl:             "require",
-    max:             10,
-    idle_timeout:    20,
-    connect_timeout: 10,
+  const connectionString = process.env.DATABASE_URL!;
+  // Parse host from the connection string so we can pass it explicitly.
+  // This forces the postgres driver to resolve via IPv4 (required on Railway,
+  // which does not support IPv6). The Supabase session pooler URL
+  // (aws-0-*.pooler.supabase.com) always resolves to an IPv4 address.
+  const url = new URL(connectionString);
+  return postgres(connectionString, {
+    host:                   url.hostname,
+    ssl:                    { rejectUnauthorized: false },
+    max:                    10,
+    idle_timeout:           20,
+    connect_timeout:        30,
   });
 }
 

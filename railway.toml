@@ -1,0 +1,7 @@
+[deploy]
+startCommand = "npm run start"
+healthcheckPath = "/api/conversations"
+healthcheckTimeout = 300
+
+[build]
+builder = "nixpacks"

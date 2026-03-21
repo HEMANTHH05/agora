@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["postgres"],
   // Hide the Next.js dev build indicator
   devIndicators: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "2mb",
+    },
+  },
 };
 
 export default nextConfig;
