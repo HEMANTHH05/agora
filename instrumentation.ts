@@ -5,8 +5,8 @@
 export async function register() {
   // Only run in the Node.js runtime (not the Edge runtime, not the browser)
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { initSchema } = await import("./src/lib/db");
-    await initSchema();
+    const { dbReady } = await import("./src/lib/db");
+    await dbReady;
     const { startScheduler } = await import("./src/lib/scheduler");
     startScheduler();
   }
