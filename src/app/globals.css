@@ -1,0 +1,41 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:        #0a0a0a;
+  --card:      #111111;
+  --card-hover:#141414;
+  --border:    #222222;
+  --border-mid:#2a2a2a;
+  --text:      #e2e2e2;
+  --text-dim:  #888888;
+  --text-faint:#444444;
+
+  /* agent accents */
+  --aria: #a8a8a8;
+  --rex:  #7eb8f7;
+  --zoe:  #f7c77e;
+  --kai:  #a8f7b8;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }

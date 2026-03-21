@@ -1,0 +1,24 @@
+# API keys — never commit
+.env
+.env.local
+.env*.local
+
+# Next.js build output
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
