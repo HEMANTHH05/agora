@@ -565,6 +565,10 @@ export default function Home() {
   const [view, setView] = useState<"archive" | "live">("archive");
   const [showAbout, setShowAbout] = useState(false);
 
+  // Mobile-specific state
+  const [mobileTab, setMobileTab] = useState<"archive" | "live" | "inbox">("archive");
+  const [mobileSessionOpen, setMobileSessionOpen] = useState(false);
+
   // Archive
   const [dates, setDates]                     = useState<DateEntry[]>([]);
   const [selectedDate, setSelectedDate]       = useState<string | null>(null);
@@ -695,6 +699,7 @@ export default function Home() {
           if (secs >= event.durationSeconds) clearInterval(timerRef.current!);
         }, 1000);
         setView("live");
+        setMobileTab("live");
       }
 
       if (event.type === "message") {
@@ -793,12 +798,24 @@ export default function Home() {
 
   return (
     <>
+      {/* Responsive styles */}
+      <style>{`
+        .desktop-layout { display: flex !important; }
+        .mobile-layout  { display: none   !important; }
+        @media (max-width: 767px) {
+          .desktop-layout { display: none  !important; }
+          .mobile-layout  { display: flex  !important; }
+        }
+        .mobile-layout textarea { -webkit-appearance: none; }
+        .mobile-nav-btn { position: relative; }
+      `}</style>
+
       {/* Intro splash */}
       {showIntro && <IntroSplash onEnter={handleEnter} />}
 
-      {/* Main app */}
-      <div style={{
-        display: "flex", height: "100vh", overflow: "hidden",
+      {/* Main app — desktop (768px+) */}
+      <div className="desktop-layout" style={{
+        height: "100vh", overflow: "hidden",
         opacity: appVisible ? 1 : 0,
         transition: "opacity 0.6s ease",
         position: "relative",
@@ -1486,6 +1503,414 @@ export default function Home() {
             <div style={{ height: 16 }} />
           </div>
         </aside>
+
+      </div>
+
+      {/* Main app — mobile (<768px) */}
+      <div className="mobile-layout" style={{
+        flexDirection: "column", height: "100vh", overflow: "hidden",
+        opacity: appVisible ? 1 : 0,
+        transition: "opacity 0.6s ease",
+        position: "relative",
+      }}>
+
+        {/* Mobile top header */}
+        <div style={{
+          padding: "12px 16px", borderBottom: "1px solid var(--border)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.1em", color: "var(--text)" }}>AGORA</div>
+            <div style={{ fontSize: 9, color: "var(--text-faint)", letterSpacing: "0.04em" }}>AI RESEARCH UNIVERSITY</div>
+          </div>
+          {liveSession && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Dot color="#4ade80" size={7} glow />
+              <span style={{ fontSize: 10, color: "#4ade80", fontWeight: 700, letterSpacing: "0.08em" }}>LIVE</span>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile content */}
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+
+          {/* ── ARCHIVE: session list ── */}
+          {mobileTab === "archive" && !mobileSessionOpen && (
+            <div style={{ flex: 1, overflowY: "auto" }}>
+
+              {/* Researchers row */}
+              <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-faint)", textTransform: "uppercase", marginBottom: 8 }}>Researchers</div>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  {[
+                    { id: "quinn", name: "Quinn", role: "Question Framing" },
+                    { id: "eva",   name: "Eva",   role: "Evidence Retrieval" },
+                    { id: "sol",   name: "Sol",   role: "Hypothesis & Solutions" },
+                    { id: "vera",  name: "Vera",  role: "Critic & Verifier" },
+                  ].map((a) => (
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <Dot color={ACCENT[a.id]} size={6} />
+                      <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{a.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Achievements */}
+              {achievements.length > 0 && (
+                <div>
+                  <div style={{ padding: "12px 16px 4px" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "#a8f7b8", textTransform: "uppercase" }}>✦ Achievements</span>
+                  </div>
+                  {achievements.map((s) => (
+                    <button key={s.id}
+                      onClick={() => { setMobileSessionOpen(true); setSelectedSession(s); setMobileTab("archive"); }}
+                      style={{
+                        display: "block", width: "100%", padding: "14px 16px", minHeight: 44,
+                        background: "transparent", border: "none",
+                        borderBottom: "1px solid var(--border)", textAlign: "left", cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ fontSize: 10, color: "#a8f7b8", fontWeight: 600, marginBottom: 4 }}>
+                        ✦ RESOLVED · {format(parseISO(s.date), "MMM d")}
+                      </div>
+                      <div style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {s.topic}
+                      </div>
+                    </button>
+                  ))}
+                  <Divider margin="0" />
+                </div>
+              )}
+
+              {/* Date chips */}
+              {dates.length > 0 && (
+                <div style={{ display: "flex", overflowX: "auto", padding: "10px 12px", gap: 6, borderBottom: "1px solid var(--border)" }}>
+                  {dates.map((d) => (
+                    <button key={d.date}
+                      onClick={() => { setView("archive"); selectDate(d.date); }}
+                      style={{
+                        flexShrink: 0, padding: "8px 14px", minHeight: 36,
+                        background: selectedDate === d.date ? "var(--card)" : "transparent",
+                        border: `1px solid ${selectedDate === d.date ? "var(--text-faint)" : "var(--border)"}`,
+                        borderRadius: 16,
+                        color: selectedDate === d.date ? "var(--text)" : "var(--text-dim)",
+                        fontSize: 12, cursor: "pointer",
+                      }}
+                    >
+                      {format(parseISO(d.date), "MMM d")} · {d.count}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Session cards */}
+              {sessions.length === 0 ? (
+                <div style={{ padding: "20px 16px", fontSize: 13, color: "var(--text-faint)" }}>
+                  {dates.length === 0 ? "No sessions yet." : "No sessions on this date."}
+                </div>
+              ) : sessions.map((s) => {
+                const resolved = s.session_status === "ACHIEVEMENT";
+                const running  = !s.ended_at;
+                return (
+                  <button key={s.id}
+                    onClick={() => { setMobileSessionOpen(true); setSelectedSession(s); }}
+                    style={{
+                      display: "block", width: "100%", padding: "14px 16px", minHeight: 44,
+                      background: "transparent", border: "none",
+                      borderBottom: "1px solid var(--border)", textAlign: "left", cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, color: "var(--text-faint)" }}>{format(parseISO(s.started_at), "h:mm a")}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: resolved ? "#a8f7b8" : running ? "#4ade80" : "var(--text-faint)" }}>
+                        {resolved ? "✦ RESOLVED" : running ? "● LIVE" : "ONGOING"}
+                      </span>
+                    </div>
+                    {s.session_number > 1 && (
+                      <div style={{ fontSize: 10, color: "var(--text-faint)", marginBottom: 3 }}>Session {s.session_number}</div>
+                    )}
+                    <div style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.4, marginBottom: 8, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {s.topic}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      {ALL_AGENTS.map((id) => <Dot key={id} color={ACCENT[id]} size={5} />)}
+                      <span style={{ fontSize: 10, color: "var(--text-faint)", marginLeft: "auto" }}>{s.messages.length} msgs</span>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {/* Run Research */}
+              <div style={{ padding: "16px 16px 88px" }}>
+                {(() => {
+                  const limitReached = runsRemaining !== null && runsRemaining <= 0;
+                  const disabled = triggering || limitReached;
+                  return (
+                    <>
+                      <button
+                        onClick={triggerSession}
+                        disabled={disabled}
+                        style={{
+                          width: "100%", padding: "14px 0", minHeight: 44,
+                          background: "transparent", border: "1px solid var(--border-mid)",
+                          borderRadius: 6,
+                          color: disabled ? "var(--text-faint)" : "var(--text-dim)",
+                          fontSize: 12, fontWeight: 600, letterSpacing: "0.08em",
+                          textTransform: "uppercase", cursor: disabled ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {triggering ? "Starting…" : limitReached ? "No Runs Left Today" : "Run Research"}
+                      </button>
+                      <div style={{ fontSize: 10, color: "var(--text-faint)", marginTop: 6, textAlign: "center" }}>
+                        {runsRemaining === null ? "" : limitReached ? "Resets at midnight" : `${runsRemaining} of 5 runs remaining today`}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* ── ARCHIVE: session detail ── */}
+          {mobileTab === "archive" && mobileSessionOpen && selectedSession && (
+            <>
+              <div style={{
+                padding: "0 16px", borderBottom: "1px solid var(--border)",
+                display: "flex", alignItems: "center", gap: 10, flexShrink: 0, minHeight: 56,
+              }}>
+                <button
+                  onClick={() => setMobileSessionOpen(false)}
+                  style={{
+                    background: "none", border: "none", color: "var(--text-dim)",
+                    fontSize: 20, cursor: "pointer", padding: "0 8px 0 0",
+                    minHeight: 44, minWidth: 44, display: "flex", alignItems: "center",
+                  }}
+                >
+                  ←
+                </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, color: "var(--text-faint)", marginBottom: 2 }}>
+                    {format(parseISO(selectedSession.started_at), "MMM d · h:mm a")}
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {selectedSession.topic}
+                  </div>
+                </div>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px 16px 88px", display: "flex", flexDirection: "column", gap: 22 }}>
+                {selectedSession.messages.map((msg, i) => (
+                  <MessageRow key={i} msg={msg} content={msg.content}
+                    humanInputBefore={followedHumanInput(selectedSession.messages, i)} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── LIVE tab ── */}
+          {mobileTab === "live" && (
+            liveSession ? (
+              <>
+                <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <Dot color="#4ade80" size={7} glow />
+                    <span style={{ fontSize: 10, color: "#4ade80", fontWeight: 700, letterSpacing: "0.1em" }}>LIVE RESEARCH</span>
+                    <span style={{ fontSize: 10, color: "var(--text-faint)", marginLeft: 4 }}>{format(parseISO(liveSession.startedAt), "h:mm a")}</span>
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text)", lineHeight: 1.4, marginBottom: 12 }}>
+                    {liveSession.topic}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ flex: 1, height: 2, background: "var(--border)", borderRadius: 1, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${liveProgress * 100}%`, background: "var(--text-dim)", borderRadius: 1, transition: "width 1s linear" }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>{formatDuration(liveRemaining)} remaining</span>
+                  </div>
+                </div>
+                <div style={{ flex: 1, overflowY: "auto", padding: "20px 16px 88px", display: "flex", flexDirection: "column", gap: 22 }}>
+                  {liveMessages.map((msg, i) => (
+                    <MessageRow key={i} msg={msg} content={resolveContent(msg, i)}
+                      isAnimating={i === animatingIdx}
+                      humanInputBefore={followedHumanInput(liveMessages, i)} />
+                  ))}
+                  <div ref={liveBottomRef} />
+                </div>
+              </>
+            ) : (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "0 24px" }}>
+                <div style={{ fontSize: 14, color: "var(--text-dim)" }}>No session running</div>
+                <div style={{ fontSize: 13, color: "var(--text-faint)", textAlign: "center", lineHeight: 1.6 }}>
+                  One research session runs daily.{" "}
+                  <button onClick={triggerSession} style={{ background: "none", border: "none", color: "var(--text-dim)", fontSize: 13, textDecoration: "underline", cursor: "pointer", padding: 0 }}>
+                    Run one now.
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+
+          {/* ── INBOX tab ── */}
+          {mobileTab === "inbox" && (
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>Human Inbox</span>
+                  {pendingInbox.length > 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 700, background: "#f7c77e", color: "#0a0a0a", borderRadius: 10, padding: "2px 7px" }}>
+                      {pendingInbox.length}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 4 }}>
+                  Agents leave requests here when they need outside information
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 8, padding: "8px 10px", background: "#1a1208", border: "1px solid #2a2010", borderRadius: 4, lineHeight: 1.5 }}>
+                  ⚠ Only submit verified, factual information. Agents will incorporate whatever you write into live research.
+                </div>
+                {injecting && (
+                  <div style={{ fontSize: 11, color: "#4ade80", marginTop: 6, fontWeight: 500 }}>⚡ Injecting into session…</div>
+                )}
+              </div>
+
+              {pendingInbox.length === 0 && resolvedInbox.length === 0 && (
+                <div style={{ padding: "24px 16px", fontSize: 13, color: "var(--text-faint)" }}>
+                  No requests yet. Agents will ask here when they need information you can provide.
+                </div>
+              )}
+
+              {pendingInbox.length > 0 && (
+                <div style={{ padding: "10px 0" }}>
+                  <div style={{ padding: "0 16px 8px", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-faint)", textTransform: "uppercase" }}>
+                    Awaiting Response
+                  </div>
+                  {pendingInbox.map((msg) => (
+                    <div key={msg.id} style={{ margin: "0 12px 10px", padding: "14px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                        <Dot color={ACCENT[msg.agent_id] ?? "#555"} size={6} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: ACCENT[msg.agent_id] ?? "var(--text)", textTransform: "capitalize" }}>{msg.agent_name}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-faint)" }}>· {AGENT_ROLES[msg.agent_id]}</span>
+                      </div>
+                      {msg.request_type && (
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: BADGE_COLORS[msg.request_type] ?? "var(--text-faint)", textTransform: "uppercase", border: `1px solid ${BADGE_COLORS[msg.request_type] ?? "var(--border)"}`, borderRadius: 3, padding: "1px 5px", marginBottom: 8, display: "inline-block" }}>
+                          {msg.request_type.replace("_", " ")}
+                        </span>
+                      )}
+                      <div style={{ fontSize: 14, color: "var(--text)", lineHeight: 1.6, marginBottom: 12, marginTop: msg.request_type ? 8 : 0 }}>
+                        {msg.request}
+                      </div>
+                      <textarea
+                        rows={3}
+                        value={draftResponses[msg.id] ?? ""}
+                        onChange={(e) => setDraftResponses((prev) => ({ ...prev, [msg.id]: e.target.value }))}
+                        placeholder="Your response…"
+                        style={{ width: "100%", background: "var(--surface2, #1a1a1e)", border: "1px solid var(--border-mid)", borderRadius: 4, color: "var(--text)", fontSize: 14, lineHeight: 1.5, padding: "10px 12px", resize: "none", outline: "none", fontFamily: "inherit", minHeight: 80, boxSizing: "border-box" }}
+                      />
+                      <button
+                        onClick={() => submitResponse(msg.id)}
+                        disabled={submitting === msg.id || !draftResponses[msg.id]?.trim()}
+                        style={{ marginTop: 8, width: "100%", padding: "12px 0", minHeight: 44, background: "transparent", border: "1px solid var(--border-mid)", borderRadius: 4, color: draftResponses[msg.id]?.trim() ? "var(--text-dim)" : "var(--text-faint)", fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", cursor: draftResponses[msg.id]?.trim() ? "pointer" : "not-allowed" }}
+                      >
+                        {submitting === msg.id ? "Sending…" : "Send Response"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {resolvedInbox.length > 0 && (
+                <div style={{ padding: "6px 0" }}>
+                  <div style={{ padding: "0 16px 8px", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-faint)", textTransform: "uppercase" }}>Answered</div>
+                  {resolvedInbox.map((msg) => (
+                    <div key={msg.id} style={{ margin: "0 12px 8px", padding: "12px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, opacity: 0.65 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <Dot color={ACCENT[msg.agent_id] ?? "#555"} size={5} />
+                        <span style={{ fontSize: 12, color: ACCENT[msg.agent_id] ?? "var(--text)", fontWeight: 600, textTransform: "capitalize" }}>{msg.agent_name}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-faint)" }}>{format(parseISO(msg.created_at), "MMM d")}</span>
+                      </div>
+                      {msg.request_type && (
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: BADGE_COLORS[msg.request_type] ?? "var(--text-faint)", textTransform: "uppercase", border: `1px solid ${BADGE_COLORS[msg.request_type] ?? "var(--border)"}`, borderRadius: 3, padding: "1px 5px", marginBottom: 6, display: "inline-block" }}>
+                          {msg.request_type.replace("_", " ")}
+                        </span>
+                      )}
+                      <div style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.5, marginBottom: 6, marginTop: msg.request_type ? 6 : 0 }}>{msg.request}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-faint)", borderTop: "1px solid var(--border)", paddingTop: 6 }}>→ {msg.response}</div>
+                      {msg.reaction && (
+                        <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 6 }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: ACCENT[msg.agent_id] ?? "var(--text-faint)", textTransform: "uppercase", marginBottom: 4 }}>Agent Reaction</div>
+                          <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.5 }}>{msg.reaction}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ height: 80 }} />
+            </div>
+          )}
+
+        </div>
+
+        {/* Bottom navigation bar */}
+        <div style={{
+          position: "fixed", bottom: 0, left: 0, right: 0,
+          height: 60, background: "var(--bg)",
+          borderTop: "1px solid var(--border)",
+          display: "flex", zIndex: 50,
+        }}>
+          {([
+            { tab: "archive" as const, label: "Archive" },
+            { tab: "live"    as const, label: "Live"    },
+            { tab: "inbox"   as const, label: "Inbox"   },
+          ]).map(({ tab, label }) => (
+            <button
+              key={tab}
+              className="mobile-nav-btn"
+              onClick={() => { setMobileTab(tab); if (tab !== "archive") setMobileSessionOpen(false); }}
+              style={{
+                flex: 1, display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                background: "none", border: "none", cursor: "pointer",
+                color: mobileTab === tab ? "var(--text)" : "var(--text-faint)",
+                gap: 3, minHeight: 60,
+              }}
+            >
+              {/* Icon */}
+              <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
+                {tab === "archive" && <span style={{ fontSize: 16 }}>⊟</span>}
+                {tab === "live" && (
+                  <>
+                    <span style={{ fontSize: 16 }}>◉</span>
+                    {liveSession && (
+                      <span style={{
+                        position: "absolute", top: 0, right: 0,
+                        width: 7, height: 7, borderRadius: "50%",
+                        background: "#4ade80", boxShadow: "0 0 5px #4ade80",
+                      }} />
+                    )}
+                  </>
+                )}
+                {tab === "inbox" && (
+                  <>
+                    <span style={{ fontSize: 16 }}>⊡</span>
+                    {pendingInbox.length > 0 && (
+                      <span style={{
+                        position: "absolute", top: -2, right: -4,
+                        fontSize: 8, fontWeight: 700,
+                        background: "#f7c77e", color: "#0a0a0a",
+                        borderRadius: 8, padding: "1px 4px", lineHeight: 1.4,
+                      }}>
+                        {pendingInbox.length}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              <span style={{ fontSize: 10, letterSpacing: "0.04em" }}>{label}</span>
+            </button>
+          ))}
+        </div>
 
       </div>
     </>
