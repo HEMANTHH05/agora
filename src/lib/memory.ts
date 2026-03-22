@@ -142,18 +142,34 @@ Rules:
 - historyEntry: One sentence. Past tense. Specific about the problem and what was concretely found or eliminated.
 - preference: One sentence about a reasoning pattern specific to this agent's behavior this session, or null.`;
 
+  const tryParse = (raw: string): MemoryExtraction | null => {
+    let s = raw.replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim();
+    // Salvage truncated JSON: if it doesn't end with }, try appending }
+    if (!s.endsWith("}")) s = s + "}";
+    try {
+      return JSON.parse(s) as MemoryExtraction;
+    } catch {
+      return null;
+    }
+  };
+
+  const call = () => anthropic.messages.create({
+    model:      "claude-haiku-4-5-20251001",
+    max_tokens: 600,
+    messages:   [{ role: "user", content: prompt }],
+  });
+
   try {
-    const response = await anthropic.messages.create({
-      model:      "claude-haiku-4-5-20251001", // cheap + fast for utility work
-      max_tokens: 300,
-      messages:   [{ role: "user", content: prompt }],
-    });
-
+    const response = await call();
     const text = (response.content[0] as { text: string }).text.trim();
+    const result = tryParse(text);
+    if (result) return result;
 
-    // Strip markdown code fences if present
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim();
-    return JSON.parse(cleaned) as MemoryExtraction;
+    // Retry once if parsing failed
+    console.warn(`[AGORA] Memory parse failed for ${agentId}, retrying…`);
+    const retry = await call();
+    const retryText = (retry.content[0] as { text: string }).text.trim();
+    return tryParse(retryText);
   } catch (err) {
     console.error(`[AGORA] Memory extraction failed for ${agentId}:`, err);
     return null;

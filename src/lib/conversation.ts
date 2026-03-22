@@ -88,12 +88,6 @@ function parseResolution(content: string): string | null {
   return match ? match[1].trim() : null;
 }
 
-// ── SESSION_CLOSURE detector ───────────────────────────────────────────────
-
-function parseClosure(content: string): boolean {
-  return /SESSION_CLOSURE:/i.test(content);
-}
-
 // ── Turn instruction builder ───────────────────────────────────────────────
 
 function buildTurnInstruction(
@@ -101,33 +95,12 @@ function buildTurnInstruction(
   history: Message[],
   turnIndex: number,
   sessionNumber: number,
-  closureRequested: boolean,
 ): string {
   const isFirstCycle = turnIndex < RESEARCH_ORDER.length;
   const lastQuinn = [...history].reverse().find((m) => m.agentId === "quinn");
   const lastEva   = [...history].reverse().find((m) => m.agentId === "eva");
   const lastSol   = [...history].reverse().find((m) => m.agentId === "sol");
   const lastVera  = [...history].reverse().find((m) => m.agentId === "vera");
-
-  // ── Closure turns — one final shot each for Sol and Vera ─────────────────
-  if (closureRequested) {
-    if (agent.id === "sol") {
-      return `YOUR TURN — FINAL SYNTHESIS (Quinn has closed the session)
-Synthesize what has been established this session. State clearly:
-1. Which approach is strongest and why it survived Vera's scrutiny.
-2. What the key remaining open question is for the next session.
-3. What evidence Eva should prioritize finding next time.
-Be concrete and brief — this is the final message of the session.`;
-    }
-    if (agent.id === "vera") {
-      const canResolve = sessionNumber >= MIN_SESSIONS_TO_RESOLVE;
-      return `YOUR TURN — FINAL EVALUATION (Quinn has closed the session)
-Evaluate Sol's final synthesis. State: (1) what holds from this session, (2) what the single most important unresolved question is, (3) what the next session must not skip.
-${canResolve
-  ? "If the full research question is genuinely answered across all sessions — declare RESEARCH_RESOLVED: [summary]. Otherwise, do not."
-  : `Do NOT declare RESEARCH_RESOLVED. Session ${sessionNumber} of ${MIN_SESSIONS_TO_RESOLVE} required.`}`;
-    }
-  }
 
   switch (agent.id) {
     case "quinn": {
@@ -151,7 +124,7 @@ Be specific about what changed or was learned last session.`;
         ? `\nLast cycle summary:\n  Quinn: "${lastQuinn.content.slice(0, 80).replace(/\n/g, " ")}…"\n  Eva: "${lastEva.content.slice(0, 80).replace(/\n/g, " ")}…"\n  Sol: "${lastSol.content.slice(0, 80).replace(/\n/g, " ")}…"\n  Vera: "${lastVera.content.slice(0, 80).replace(/\n/g, " ")}…"\nAddress what actually changed this cycle — do not repeat prior framing verbatim.`
         : "";
       return `YOUR TURN — REVIEW FRAMING${lastCycleSummary}
-Does the framing need updating based on what just happened? If the group is drifting, redirect. If Vera's critique revealed the question was malformed, restate it correctly. If this cycle fully addressed the current sub-question, advance to the next one or close the session with SESSION_CLOSURE:.`;
+Does the framing need updating based on what just happened? If the group is drifting, redirect. If Vera's critique revealed the question was malformed, restate it correctly. If this cycle fully addressed the current sub-question, advance to the next one.`;
     }
 
     case "eva": {
@@ -253,7 +226,6 @@ async function buildContext(
   remainingSeconds: number,
   now: Date,
   turnIndex: number,
-  closureRequested: boolean,
 ): Promise<string> {
   const timeStr = format(now, "h:mm a");
   const dateStr = format(now, "EEEE, MMMM d");
@@ -347,7 +319,7 @@ Topic: ${topic}`;
 
   // ── Turn instruction ──────────────────────────────────────────────────────
   const turnInstruction = buildTurnInstruction(
-    agent, history, turnIndex, sessionNumber, closureRequested
+    agent, history, turnIndex, sessionNumber
   );
 
   // ── Assemble ──────────────────────────────────────────────────────────────
@@ -430,11 +402,6 @@ export async function runConversation(): Promise<void> {
   let   midSessionResponses: HumanMessage[] = [];
   const seenResponseIds = new Set(sessionStartResponses.map((r) => r.id));
 
-  // ── Session closure state ─────────────────────────────────────────────────
-  let closureRequested = false;
-  let closureSolDone   = false;
-  let closureVeraDone  = false;
-
   const saveMessages = async () => {
     await sql`UPDATE conversations SET messages = ${JSON.stringify(messages)} WHERE id = ${conversationId}`;
   };
@@ -463,17 +430,6 @@ export async function runConversation(): Promise<void> {
     const agentId = RESEARCH_ORDER[turn % RESEARCH_ORDER.length];
     const agent   = AGENTS.find((a) => a.id === agentId)!;
 
-    // ── Closure routing ───────────────────────────────────────────────────
-    if (closureRequested) {
-      if (!closureSolDone) {
-        if (agentId !== "sol") { turn++; continue; }
-      } else if (!closureVeraDone) {
-        if (agentId !== "vera") { turn++; continue; }
-      } else {
-        break; // both closure turns complete
-      }
-    }
-
     const turnNow        = new Date();
     const pendingRequests = await getUnansweredHumanMessages();
 
@@ -484,7 +440,6 @@ export async function runConversation(): Promise<void> {
       Math.max(0, SESSION_DURATION - Math.floor((Date.now() - sessionStart) / 1000)),
       turnNow,
       turn,
-      closureRequested,
     );
 
     midSessionResponses = [];
@@ -511,18 +466,6 @@ export async function runConversation(): Promise<void> {
         created_at:      new Date().toISOString(),
       });
       console.log(`[AGORA] ${agent.name} [${req.requestType}]: "${req.text.slice(0, 80)}"`);
-    }
-
-    // ── SESSION_CLOSURE check (Quinn only) ────────────────────────────────
-    if (agentId === "quinn" && !closureRequested && parseClosure(cleaned)) {
-      closureRequested = true;
-      console.log(`[AGORA] Quinn declared SESSION_CLOSURE — running final Sol + Vera turns`);
-    }
-
-    // ── Mark closure turns complete ───────────────────────────────────────
-    if (closureRequested) {
-      if (agentId === "sol")  closureSolDone  = true;
-      if (agentId === "vera") closureVeraDone = true;
     }
 
     // ── RESEARCH_RESOLVED check (Vera only, session >= 3) ─────────────────
@@ -613,6 +556,6 @@ export async function runConversation(): Promise<void> {
 
   console.log(
     `[AGORA] Session ${sessionNumber} complete — ${messages.length} messages — ` +
-    `${researchResolved ? "RESOLVED" : closureRequested ? "CLOSURE" : "ONGOING"}`
+    `${researchResolved ? "RESOLVED" : "ONGOING"}`
   );
 }
